@@ -9,8 +9,10 @@
   "author": "Alberto Cabello",
   "license": "ISC",
   "dependencies": {
+    "bn.js": "^2.0.4",
+    "express": "^4.16.3",
     "litecore-p2p": "^1.1.2",
     "mysql": "^2.15.0",
-    "npm": "^5.8.0"
+    "npm": "^5.10.0"
   }
 }

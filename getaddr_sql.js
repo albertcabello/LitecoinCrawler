@@ -6,6 +6,7 @@ var BN = require('bn.js');
 var Messages = require('litecore-p2p').Messages;
 var mysql = require('mysql');
 var config = require('./config.js');
+var http = require('http');
 
 var app = express();
 var connection = mysql.createConnection({
@@ -102,7 +103,7 @@ function crawl(seed) {
                                 console.log("Error:", err);
                         }
                 });
-                console.log("Error reaching", peer.host);
+                console.log("Error reaching", peer.host, error);
                 next++;
         });
 
@@ -139,8 +140,6 @@ function crawl(seed) {
         peer.connect();
 }
 
-crawl('18.194.171.146');
-/*
 queue.push('18.194.171.146');
 setInterval(function () {
         if (queue.length > 0 && next > 0) {
@@ -148,7 +147,6 @@ setInterval(function () {
                 crawl(queue.shift());
         }
 }, 1000);
-*/
 
 
 /**********************************************************
@@ -188,16 +186,18 @@ app.get('/addr/:ip', function (req, res) {
 
                 peer.once('ready', () => { //Wow, you did know what you were doing
                         var messages = new Messages();
-                        var addrMessage = messages.Addresses([{
-                                ip: {
-                                        v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
-                                        v6: '0:0:0:0:0:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
-                                },
-                                services: new BN('0', 10),
-                                port: 9333,
-                                time: new Date(),
-                        }]);
-                        peer.sendMessage(messageStore);
+			var addrMessage = messages.Addresses([
+				{
+					services: new BN('d', 16),
+					ip: {
+						v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
+						v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
+					},
+					port: 7474,
+					time: new Date(),
+				},
+			]);
+                        peer.sendMessage(addrMessage);
                         res.send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
                         peers[peer.host] = peer; //Add in the connection
                 });
@@ -205,24 +205,45 @@ app.get('/addr/:ip', function (req, res) {
                 peer.connect();
         }
         else {
-                var messages = new Messages();
-                var addrMessage = messages.Addresses([{
-                        services: new BN('d', 16),
-                        ip: {
-                                v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
-                                v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
-                        },
-                        port: 9333,
-                        time: new Date(),
-                }]);
-                peer.sendMessage(addrMessage);
-                res.send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
+		if (peer.status === Peer.STATUS.CONNECTED) {
+			var messages = new Messages();
+			var addrMessage = messages.Addresses([
+				{
+					services: new BN('d', 16),
+					ip: {
+						v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
+						v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
+					},
+					port: 7474,
+					time: new Date(),
+				},
+			]);
+			peer.sendMessage(addrMessage);
+			res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
+		}
+		else {
+			res.status(400).send({error: 'I am not connected to that IP'});
+		}
         }
-});
-
-app.get(function (req, res) {
-        console.log("Incoming request");
 });
 
 app.listen(3000);
 
+/*********************************************
+*	    Interval to Ping Peers	     *
+*********************************************/
+setInterval(function() {
+	for (var peer in peers) {
+		http.get('http://localhost:3000/addr/'+peer, function (res) {
+			const { statusCode } = res;
+			let error;
+			if (statusCode !== 200) {
+				error = new Error('Could not connect to peer', peer, 'to send addr');
+				console.log(error);
+			}
+			else {
+				console.log('Sent addr to peer', peer);
+			}
+		});
+	}
+}, 600000); //Run every 10 minutes;

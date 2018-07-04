@@ -7,6 +7,7 @@ var Messages = require('litecore-p2p').Messages;
 var mysql = require('mysql');
 var config = require('./config.js');
 var http = require('http');
+var net = require('net');
 
 var app = express();
 var connection = mysql.createConnection({
@@ -247,3 +248,22 @@ setInterval(function() {
 		});
 	}
 }, 600000); //Run every 10 minutes;
+
+
+/************************************************
+ *		Listening Server		*
+ ***********************************************/
+var server = net.createServer(function(socket) {
+	var addr = {
+		ip: {},
+	}
+	if (net.isIPv6(socket.remoteAddress)) {
+		addr.ip.v6 = socket.remoteAddress;
+	}
+	else {
+		addr.ip.v4 = socket.remoteAddress;
+	}
+	addr.port = socket.remotePort;
+});
+
+server.listen(config.server.port);

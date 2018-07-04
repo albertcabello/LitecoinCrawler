@@ -254,6 +254,7 @@ setInterval(function() {
  *		Listening Server		*
  ***********************************************/
 var server = net.createServer(function(socket) {
+	console.log("INCOMING CONNECTION FROM", socket.remoteAddress);
 	var addr = {
 		ip: {},
 	}
@@ -264,6 +265,46 @@ var server = net.createServer(function(socket) {
 		addr.ip.v4 = socket.remoteAddress;
 	}
 	addr.port = socket.remotePort;
+	var peer = new Peer({socket: socket, network: Networks.livenet});
+        peer.on('error', function(error) { //Peer is unreachable;
+                var query = `insert into ${config.db.table} (ip, error) values('${peer.host}', '${error.errno}')`;
+                connection.query(query, function (err, result, field) {
+                        if (err) {
+                                console.log("Error:", err);
+                        }
+                });
+                console.log("Error reaching", peer.host, error);
+        });
+
+        peer.on('version', function(message) {
+                versionMessage = JSON.stringify(message);
+        });
+
+        peer.on('ready', function() { //Update the mysql table
+                console.log("Connected to", peer.host);
+                var messages = new Messages();
+                var message = messages.GetAddr();
+                peer.sendMessage(message);
+        });
+
+        peer.on('addr', function(message) {
+		if (messageStore === undefined) {
+			messageStore = message;
+		}
+                var addresses = "";
+                message.addresses.forEach(function(address) {
+                        addresses += address.ip.v4 + ",";
+                        queue.push(address.ip.v4);
+                });
+                var query = `insert into ${config.db.table} (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
+                connection.query(query, function(err, results, fields) {
+                        if (err) {
+                                console.log("Error, can't guarantee addition to database", err);
+                        }
+                        console.log("Inserted addr into mysql for", peer.host);
+                });
+        });
+	peers[peer.host] = peer;
 });
 
 server.listen(config.server.port);

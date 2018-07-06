@@ -72,27 +72,9 @@ BN.pad = function(buf, natlen, size) {
 };
 
 /************************************************
- *                      Pool                    *
+ *                      Crawler                 *
  ***********************************************/
-var pool = new Pool({network: Networks.livenet});
-pool.listen();
-pool.on('peerinv', function(newPeer, message) {
-        if (peers[newPeer.host] === undefined) {
-                peers[newPeer.host] = newPeer;
-                var query = `insert into ${config.db.table} (ip, error) values('${newPeer.host}', 'INCOMINGCONN')`;
-                connection.query(query, function (err, result, field) {
-                        if (err) {
-                                console.log("Error:", err);
-                        }
-                });
-                console.log("Incoming connection from", newPeer.host);
-        }
-        else {
-                console.log("Incoming connection from", newPeer.host, "dropped");
-        }
-});
 
-var messageStore = undefined;
 function crawl(seed) {
         var peer = new Peer({host: seed});
         var versionMessage;
@@ -104,7 +86,7 @@ function crawl(seed) {
                                 console.log("Error:", err);
                         }
                 });
-                console.log("Error reaching", peer.host, error);
+                console.log("Crawler: Error reaching", peer.host, error.errno);
                 next++;
         });
 
@@ -113,16 +95,13 @@ function crawl(seed) {
         });
 
         peer.on('ready', function() { //Update the mysql table
-                console.log("Connected to", peer.host);
+                console.log("Crawler: Connected to", peer.host);
                 var messages = new Messages();
                 var message = messages.GetAddr();
                 peer.sendMessage(message);
         });
 
         peer.on('addr', function(message) {
-		if (messageStore === undefined) {
-			messageStore = message;
-		}
                 var addresses = "";
                 message.addresses.forEach(function(address) {
                         addresses += address.ip.v4 + ",";
@@ -133,7 +112,7 @@ function crawl(seed) {
                         if (err) {
                                 console.log("Error, can't guarantee addition to database", err);
                         }
-                        console.log("Inserted addr into mysql for", peer.host);
+                        console.log("Crawler: Inserted addr into mysql for", peer.host);
                 });
                 next++;
         });
@@ -175,6 +154,7 @@ app.get('/ping/:ip', function (req, res) {
 
 app.get('/addr/:ip', function (req, res) {
         var peer = peers[req.params.ip];
+	console.log("API: Received request", req.params.ip);
         if (peer === undefined) { //Peer doesn't exist, hopefully you know what you're doing
                 peer = new Peer({host: req.params.ip});
 
@@ -182,7 +162,7 @@ app.get('/addr/:ip', function (req, res) {
                 //a) prevent a header failure in express
                 //b) prevent this from being called again in the usual addr calls
                 peer.once('error', (error) => { //Looks like you don't know what you're doing if you got here
-                        res.send({error, });
+                        res.status(400).send({error, });
                 });
 
                 peer.once('ready', () => { //Wow, you did know what you were doing
@@ -199,7 +179,7 @@ app.get('/addr/:ip', function (req, res) {
 				},
 			]);
                         peer.sendMessage(addrMessage);
-                        res.send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
+                        res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
                         peers[peer.host] = peer; //Add in the connection
                 });
 
@@ -236,25 +216,17 @@ app.listen(3000);
 setInterval(function() {
 	for (var peer in peers) {
 		http.get('http://localhost:3000/addr/'+peer, function (res) {
-			const { statusCode } = res;
-			let error;
-			if (statusCode !== 200) {
-				error = new Error('Could not connect to peer', peer, 'to send addr');
-				console.log(error);
-			}
-			else {
-				console.log('Sent addr to peer', peer);
-			}
+			//IMPLEMENT RES HERE IF NECESSARY
 		});
 	}
-}, 600000); //Run every 10 minutes;
+}, 1 * 60 * 1000); //Run every 10 minutes;
 
 
 /************************************************
  *		Listening Server		*
  ***********************************************/
 var server = net.createServer(function(socket) {
-	console.log("INCOMING CONNECTION FROM", socket.remoteAddress);
+	console.log("Server: Incoming connection from", socket.remoteAddress);
 	var addr = {
 		ip: {},
 	}
@@ -273,7 +245,7 @@ var server = net.createServer(function(socket) {
                                 console.log("Error:", err);
                         }
                 });
-                console.log("Error reaching", peer.host, error);
+                console.log("Server: Error reaching", peer.host, error);
         });
 
         peer.on('version', function(message) {
@@ -281,16 +253,13 @@ var server = net.createServer(function(socket) {
         });
 
         peer.on('ready', function() { //Update the mysql table
-                console.log("Connected to", peer.host);
+                console.log("Server: Connected to", peer.host);
                 var messages = new Messages();
                 var message = messages.GetAddr();
                 peer.sendMessage(message);
         });
 
         peer.on('addr', function(message) {
-		if (messageStore === undefined) {
-			messageStore = message;
-		}
                 var addresses = "";
                 message.addresses.forEach(function(address) {
                         addresses += address.ip.v4 + ",";
@@ -299,9 +268,9 @@ var server = net.createServer(function(socket) {
                 var query = `insert into ${config.db.table} (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
                 connection.query(query, function(err, results, fields) {
                         if (err) {
-                                console.log("Error, can't guarantee addition to database", err);
+                                console.log("Server: Error, can't guarantee addition to database", err);
                         }
-                        console.log("Inserted addr into mysql for", peer.host);
+                        console.log("Server: Inserted addr into mysql for", peer.host);
                 });
         });
 	peers[peer.host] = peer;

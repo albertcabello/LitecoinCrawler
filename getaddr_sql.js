@@ -13,6 +13,7 @@ var app = express();
 var connection = mysql.createConnection({
         host     : config.db.host,
         user     : config.db.user,
+	port	 : config.db.port,
         password : config.db.password,
         database : config.db.database,
 });
@@ -74,48 +75,50 @@ BN.pad = function(buf, natlen, size) {
 /************************************************
  *                      Crawler                 *
  ***********************************************/
+function addPeerEvents(peer) {
+	var versionMessage;
+	peer.on('error', function(error) { //Peer is unreachable;
+		var query = `insert into ${config.db.table} (ip, error) values('${peer.host}', '${error.errno}')`;
+		connection.query(query, function (err, result, field) {
+			if (err) {
+				console.log("Error:", err);
+			}
+		});
+		console.log("Crawler: Error reaching", peer.host, error.errno);
+		next++;
+	});
+
+	peer.on('version', function(message) {
+		versionMessage = JSON.stringify(message);
+	});
+
+	peer.on('ready', function() { //Update the mysql table
+		console.log("Crawler: Connected to", peer.host);
+		var messages = new Messages();
+		var message = messages.GetAddr();
+		peer.sendMessage(message);
+	});
+
+	peer.on('addr', function(message) {
+		var addresses = "";
+		message.addresses.forEach(function(address) {
+			addresses += address.ip.v4 + ",";
+			queue.push(address.ip.v4);
+		});
+		var query = `insert into ${config.db.table} (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
+		connection.query(query, function(err, results, fields) {
+			if (err) {
+				console.log("Error, can't guarantee addition to database", err);
+			}
+			console.log("Crawler: Inserted addr into mysql for", peer.host);
+		});
+		next++;
+	});
+}
 
 function crawl(seed) {
         var peer = new Peer({host: seed});
-        var versionMessage;
-
-        peer.on('error', function(error) { //Peer is unreachable;
-                var query = `insert into ${config.db.table} (ip, error) values('${peer.host}', '${error.errno}')`;
-                connection.query(query, function (err, result, field) {
-                        if (err) {
-                                console.log("Error:", err);
-                        }
-                });
-                console.log("Crawler: Error reaching", peer.host, error.errno);
-                next++;
-        });
-
-        peer.on('version', function(message) {
-                versionMessage = JSON.stringify(message);
-        });
-
-        peer.on('ready', function() { //Update the mysql table
-                console.log("Crawler: Connected to", peer.host);
-                var messages = new Messages();
-                var message = messages.GetAddr();
-                peer.sendMessage(message);
-        });
-
-        peer.on('addr', function(message) {
-                var addresses = "";
-                message.addresses.forEach(function(address) {
-                        addresses += address.ip.v4 + ",";
-                        queue.push(address.ip.v4);
-                });
-                var query = `insert into ${config.db.table} (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
-                connection.query(query, function(err, results, fields) {
-                        if (err) {
-                                console.log("Error, can't guarantee addition to database", err);
-                        }
-                        console.log("Crawler: Inserted addr into mysql for", peer.host);
-                });
-                next++;
-        });
+	addPeerEvents(peer);
         peers[peer.host] = peer;
         peer.connect();
 }
@@ -227,52 +230,8 @@ setInterval(function() {
  ***********************************************/
 var server = net.createServer(function(socket) {
 	console.log("Server: Incoming connection from", socket.remoteAddress);
-	var addr = {
-		ip: {},
-	}
-	if (net.isIPv6(socket.remoteAddress)) {
-		addr.ip.v6 = socket.remoteAddress;
-	}
-	else {
-		addr.ip.v4 = socket.remoteAddress;
-	}
-	addr.port = socket.remotePort;
 	var peer = new Peer({socket: socket, network: Networks.livenet});
-        peer.on('error', function(error) { //Peer is unreachable;
-                var query = `insert into ${config.db.table} (ip, error) values('${peer.host}', '${error.errno}')`;
-                connection.query(query, function (err, result, field) {
-                        if (err) {
-                                console.log("Error:", err);
-                        }
-                });
-                console.log("Server: Error reaching", peer.host, error);
-        });
-
-        peer.on('version', function(message) {
-                versionMessage = JSON.stringify(message);
-        });
-
-        peer.on('ready', function() { //Update the mysql table
-                console.log("Server: Connected to", peer.host);
-                var messages = new Messages();
-                var message = messages.GetAddr();
-                peer.sendMessage(message);
-        });
-
-        peer.on('addr', function(message) {
-                var addresses = "";
-                message.addresses.forEach(function(address) {
-                        addresses += address.ip.v4 + ",";
-                        queue.push(address.ip.v4);
-                });
-                var query = `insert into ${config.db.table} (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
-                connection.query(query, function(err, results, fields) {
-                        if (err) {
-                                console.log("Server: Error, can't guarantee addition to database", err);
-                        }
-                        console.log("Server: Inserted addr into mysql for", peer.host);
-                });
-        });
+	addPeerEvents(peer);
 	peers[peer.host] = peer;
 });
 

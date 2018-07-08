@@ -4,7 +4,8 @@
   "description": "A crawler for the litecoin network to map all nodes",
   "main": "getaddr_sql.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon -e js,txt"
   },
   "author": "Alberto Cabello",
   "license": "ISC",
@@ -13,6 +14,6 @@
     "express": "^4.16.3",
     "litecore-p2p": "^1.1.2",
     "mysql": "^2.15.0",
-    "npm": "^5.10.0"
+    "npm": "^6.1.0"
   }
 }

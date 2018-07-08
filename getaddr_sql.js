@@ -8,8 +8,11 @@ var mysql = require('mysql');
 var config = require('./config.js');
 var http = require('http');
 var net = require('net');
+var fs = require('fs');
 
-var app = express();
+/************************************************
+ *		Initialize MySQL Connection	*
+ ***********************************************/
 var connection = mysql.createConnection({
         host     : config.db.host,
         user     : config.db.user,
@@ -26,11 +29,6 @@ connection.connect(function(err) {
 console.log("Connected to mysql!");
 });
 
-var peers = {}; //Map of peers
-
-var queue = [];
-
-var next = 10;
 
 /************************************************
  *		Modification of BN.js		*
@@ -94,6 +92,7 @@ function addPeerEvents(peer) {
 
 	peer.on('ready', function() { //Update the mysql table
 		console.log("Crawler: Connected to", peer.host);
+		peers[peer.host] = peer;
 		var messages = new Messages();
 		var message = messages.GetAddr();
 		peer.sendMessage(message);
@@ -117,25 +116,41 @@ function addPeerEvents(peer) {
 }
 
 function crawl(seed) {
-        var peer = new Peer({host: seed});
-	addPeerEvents(peer);
-        peers[peer.host] = peer;
-        peer.connect();
+	if (!peers[seed]) {
+		var peer = new Peer({host: seed});
+		addPeerEvents(peer);
+		peer.connect();
+	}
 }
 
-queue.push('18.194.171.146');
-setInterval(function () {
-        if (queue.length > 0 && next > 0) {
-                next--;
-                crawl(queue.shift());
-        }
-}, 1000);
+/**********************************************************
+ *			Initialize Crawler 	  	  *
+ *********************************************************/
+var peers = {}; //Map of peers
+var queue = [];
+var next = 10;
+fs.readFile('knownHosts.txt', 'utf8', function (err, data) {
+	if (err) {
+		console.log('Error reading knownHosts.txt, using default host');
+		queue.push('18.194.171.146');
+	}
+	else {
+		console.log('Found a knownHosts.txt file, using those hosts to initialize crawler queue');
+		queue = data.split(',');
+	}
+	setInterval(function () {
+		if (queue.length > 0 && next > 0) {
+			next--;
+			crawl(queue.shift());
+		}
+	}, 1000);
+});
 
 
 /**********************************************************
 *                       API BEGINS HERE                   *
 **********************************************************/
-
+var app = express();
 app.get('/ping/:ip', function (req, res) {
         var peer = peers[req.params.ip];
         if (peer === undefined) {
@@ -233,6 +248,20 @@ var server = net.createServer(function(socket) {
 	var peer = new Peer({socket: socket, network: Networks.livenet});
 	addPeerEvents(peer);
 	peers[peer.host] = peer;
+});
+
+/************************************************
+*	Uncaught Error Handling or Exit 	*
+ ***********************************************/
+ process.on('uncaughtException', function(err) {
+	console.log("Uncaught Exception!!!", err);
+ 	fs.writeFileSync('knownHosts.txt', Object.keys(peers).toString(), function(fsErr) {
+		if (fsErr) {
+			console.log("There was an error writing knownHosts.txt", fsErr);
+		}
+		console.log("knownHosts.txt was saved");
+	});
+ 	process.exit(1);
 });
 
 server.listen(config.server.port);

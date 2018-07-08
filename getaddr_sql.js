@@ -144,6 +144,7 @@ fs.readFile('knownHosts.txt', 'utf8', function (err, data) {
 			crawl(queue.shift());
 		}
 	}, 1000);
+
 });
 
 
@@ -255,13 +256,15 @@ var server = net.createServer(function(socket) {
  ***********************************************/
  process.on('uncaughtException', function(err) {
 	console.log("Uncaught Exception!!!", err);
- 	fs.writeFileSync('knownHosts.txt', Object.keys(peers).toString(), function(fsErr) {
+ 	fs.writeFile('knownHosts.txt', Object.keys(peers).toString(), function(fsErr) {
 		if (fsErr) {
 			console.log("There was an error writing knownHosts.txt", fsErr);
 		}
-		console.log("knownHosts.txt was saved");
+		else {
+			console.log("knownHosts.txt was saved");
+		}
+		process.exit(1);
 	});
- 	process.exit(1);
 });
 
 server.listen(config.server.port);

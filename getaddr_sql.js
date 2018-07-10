@@ -93,6 +93,9 @@ function addPeerEvents(peer) {
 			peer.connectTries++;
 			peer.connect();
 		}
+		else {	
+			delete peers[peer.host];
+		}
 	});
 
 	peer.on('version', function(message) {

@@ -75,6 +75,7 @@ BN.pad = function(buf, natlen, size) {
  ***********************************************/
 function addPeerEvents(peer) {
 	var versionMessage;
+	peer.connectTries = 0;
 	peer.on('error', function(error) { //Peer is unreachable;
 		var query = `insert into ${config.db.table} (ip, error) values('${peer.host}', '${error.errno}')`;
 		connection.query(query, function (err, result, field) {
@@ -84,6 +85,14 @@ function addPeerEvents(peer) {
 		});
 		console.log("Crawler: Error reaching", peer.host, error.errno);
 		next++;
+	});
+
+	peer.on('disconnect', function() {
+		if (peer.connectTries < 2) { //Connect three times, if we got here, it's been 1 already
+			console.log("Crawler: Connecting to", peer.host, "for the", peer.connectTries+2, "time");
+			peer.connectTries++;
+			peer.connect();
+		}
 	});
 
 	peer.on('version', function(message) {

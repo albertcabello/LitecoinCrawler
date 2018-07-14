@@ -88,14 +88,14 @@ function addPeerEvents(peer) {
 	});
 
 	peer.on('disconnect', function() {
-		if (peer.connectTries < 2) { //Connect three times, if we got here, it's been 1 already
-			console.log("Crawler: Connecting to", peer.host, "for the", peer.connectTries+2, "time");
-			peer.connectTries++;
-			peer.connect();
-		}
-		else {	
-			delete peers[peer.host];
-		}
+		delete peers[peer.host];
+		setTimeout(function() {
+			if (peer.connectTries < 2) { //Connect three times, if we got here, it's been 1 already
+				console.log("Crawler: Connecting to", peer.host, "for the", peer.connectTries+2, "time");
+				peer.connectTries++;
+				peer.connect();
+			}
+		}, 5000);
 	});
 
 	peer.on('version', function(message) {
@@ -263,11 +263,11 @@ var server = net.createServer(function(socket) {
 	peers[peer.host] = peer;
 });
 
+server.listen(config.server.port);
 /************************************************
 *	Uncaught Error Handling or Exit 	*
  ***********************************************/
- process.on('uncaughtException', function(err) {
-	console.log("Uncaught Exception!!!", err);
+function flushPeers() {
  	fs.writeFile('knownHosts.txt', Object.keys(peers).toString(), function(fsErr) {
 		if (fsErr) {
 			console.log("There was an error writing knownHosts.txt", fsErr);
@@ -277,6 +277,14 @@ var server = net.createServer(function(socket) {
 		}
 		process.exit(1);
 	});
+}
+
+process.on('uncaughtException', function(err) {
+	console.log("Uncaught Exception!!!", err);
+	flushPeers();
 });
 
-server.listen(config.server.port);
+process.on('SIGUSR2', function() {
+	flushPeers();
+	console.log("Restarting");
+});

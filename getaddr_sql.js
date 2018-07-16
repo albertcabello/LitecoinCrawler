@@ -23,10 +23,10 @@ var connection = mysql.createConnection({
 
 connection.connect(function(err) {
         if (err) {
-        console.log("Error connecting to mysql server", err);
-        return;
-}
-console.log("Connected to mysql!");
+		console.log("Error connecting to mysql server", err);
+		return;
+	}
+	console.log("Connected to mysql!");
 });
 
 
@@ -205,7 +205,7 @@ app.get('/addr/:ip', function (req, res) {
 						v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
 						v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
 					},
-					port: 7474,
+					port: 7334,
 					time: new Date(),
 				},
 			]);
@@ -226,7 +226,7 @@ app.get('/addr/:ip', function (req, res) {
 						v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
 						v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
 					},
-					port: 7474,
+					port: 7333,
 					time: new Date(),
 				},
 			]);
@@ -256,14 +256,18 @@ setInterval(function() {
 /************************************************
  *		Listening Server		*
  ***********************************************/
+var serverPeers = [];
 var server = net.createServer(function(socket) {
 	console.log("Server: Incoming connection from", socket.remoteAddress);
 	var peer = new Peer({socket: socket, network: Networks.livenet});
 	addPeerEvents(peer);
 	peers[peer.host] = peer;
+	serverPeers.push(peer.host);
 });
 
-server.listen(config.server.port);
+server.listen(config.server.port, function () {
+	console.log("Opened IPv4 server on", server.address());
+});
 /************************************************
 *	Uncaught Error Handling or Exit 	*
  ***********************************************/

@@ -150,19 +150,36 @@ fs.readFile('knownHosts.txt', 'utf8', function (err, data) {
 		console.log('Found a knownHosts.txt file, using those hosts to initialize crawler queue');
 		queue = data.split(',');
 	}
-	setInterval(function () {
+	/* setInterval(function () {
 		if (queue.length > 0 && next > 0) {
 			next--;
 			crawl(queue.shift());
 		}
 	}, 1000);
+	*/
+	crawl('18.194.171.146');
 
 });
-
 
 /**********************************************************
 *                       API BEGINS HERE                   *
 **********************************************************/
+function sendAddrMessage(peer) {
+	var messages = new Messages();
+	var addrMessage = messages.Addresses([
+		{
+			services: new BN('d', 16),
+			ip: {
+				v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
+				v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
+			},
+			port: 7334,
+			time: new Date(),
+		},
+	]);
+	peer.sendMessage(addrMessage);
+}
+
 var app = express();
 app.get('/ping/:ip', function (req, res) {
         var peer = peers[req.params.ip];
@@ -193,23 +210,11 @@ app.get('/addr/:ip', function (req, res) {
                 //a) prevent a header failure in express
                 //b) prevent this from being called again in the usual addr calls
                 peer.once('error', (error) => { //Looks like you don't know what you're doing if you got here
-                        res.status(400).send({error, });
+                        res.status(400).send({error: error });
                 });
 
                 peer.once('ready', () => { //Wow, you did know what you were doing
-                        var messages = new Messages();
-			var addrMessage = messages.Addresses([
-				{
-					services: new BN('d', 16),
-					ip: {
-						v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
-						v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
-					},
-					port: 7334,
-					time: new Date(),
-				},
-			]);
-                        peer.sendMessage(addrMessage);
+                        sendAddrMessage(peer);
                         res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
                         peers[peer.host] = peer; //Add in the connection
                 });
@@ -217,27 +222,17 @@ app.get('/addr/:ip', function (req, res) {
                 peer.connect();
         }
         else {
-		if (peer.status === Peer.STATUS.CONNECTED) {
-			var messages = new Messages();
-			var addrMessage = messages.Addresses([
-				{
-					services: new BN('d', 16),
-					ip: {
-						v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
-						v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
-					},
-					port: 7333,
-					time: new Date(),
-				},
-			]);
-			peer.sendMessage(addrMessage);
+		if (peer.status === Peer.STATUS.READY) {
+			sendAddrMessage(peer);
 			res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
 		}
 		else {
-			res.status(400).send({error: 'I am not connected to that IP'});
+			res.status(400).send({error: 'I am not connected to that IP or that IP is not ready'});
 		}
         }
 });
+
+	
 
 app.listen(3000);
 
@@ -246,11 +241,10 @@ app.listen(3000);
 *********************************************/
 setInterval(function() {
 	for (var peer in peers) {
-		http.get('http://localhost:3000/addr/'+peer, function (res) {
-			//IMPLEMENT RES HERE IF NECESSARY
-		});
+		console.log("Addr Interval: sending addr to", peer);
+		sendAddrMessage(peers[peer]);
 	}
-}, 1 * 60 * 1000); //Run every 10 minutes;
+}, .5 * 60 * 1000); //Run every 10 minutes;
 
 
 /************************************************

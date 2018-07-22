@@ -8,7 +8,7 @@ config.db.password = YOUR_SQL_USER_PASSWORD_HERE;
 config.db.database = YOUR_SQL_DB_NAME;
 config.db.table = YOUR_SQL_DB_TABLE_NAME;
 
-config.server = {};
-config.server.port = YOUR_DESIRED_PORT_HERE;
+config.server = {}
+config.server.port = YOUR_SERVER_PORT_HERE;
 
 module.exports = config;

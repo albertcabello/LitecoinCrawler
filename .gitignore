@@ -1,4 +1,5 @@
-config.js
+crawler/config.js
+listener/config.js
 node_modules
 .DS_Store
-knownHosts.txt
+crawler/knownHosts.txt

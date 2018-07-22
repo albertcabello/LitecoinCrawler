@@ -150,13 +150,12 @@ fs.readFile('knownHosts.txt', 'utf8', function (err, data) {
 		console.log('Found a knownHosts.txt file, using those hosts to initialize crawler queue');
 		queue = data.split(',');
 	}
-	/* setInterval(function () {
+	setInterval(function () {
 		if (queue.length > 0 && next > 0) {
 			next--;
 			crawl(queue.shift());
 		}
 	}, 1000);
-	*/
 	crawl('18.194.171.146');
 
 });

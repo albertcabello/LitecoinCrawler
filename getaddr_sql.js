@@ -245,6 +245,22 @@ setInterval(function() {
 	}
 }, .5 * 60 * 1000); //Run every 10 minutes;
 
+
+/************************************************
+ *		Listening Server		*
+ ***********************************************/
+var serverPeers = [];
+var server = net.createServer(function(socket) {
+	console.log("Server: Incoming connection from", socket.remoteAddress);
+	var peer = new Peer({socket: socket, network: Networks.livenet});
+	addPeerEvents(peer);
+	peers[peer.host] = peer;
+	serverPeers.push(peer.host);
+});
+
+server.listen(config.server.port, function () {
+	console.log("Opened IPv4 server on", server.address());
+});
 /************************************************
 *	Uncaught Error Handling or Exit 	*
  ***********************************************/

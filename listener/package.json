@@ -1,0 +1,17 @@
+{
+  "name": "litecoinlistener",
+  "version": "1.0.0",
+  "description": "",
+  "main": "listener.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Alberto Cabello",
+  "license": "ISC",
+  "dependencies": {
+    "mysql": "^2.16.0",
+    "litecore-p2p": "^1.1.2",
+    "bn.js": "^2.0.4"
+  },
+  "devDependencies": {}
+}

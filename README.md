@@ -1,9 +1,7 @@
 # Litecoin Network Grokker
-==========================
 Welcome to the Litecoin Network Grokker.  The goal of this project is to traverse the entire Litecoin network to gather all kinds of information about it.  Currently, this project traverses the entire Litecoin network using an algorithm very similar to Breadth First Search.  
 
 ## The Project
-==============
 This project is split into two parts:
  1. The Crawler
  2. The Listener
@@ -15,7 +13,6 @@ The Listener exists because for some reason, some nodes exist that don't accept 
 These two pieces, when combined, give us an accurate way to measure the size of the Litecoin network.  
 
 ## Startup
-==========
 Because this project is split into two parts, The Crawler and The Listener can be run independently.  If you'd like to run only The Crawler, navigate to the crawler directory and run `npm run start`, this will start up the crawler as well as a reloader in case the crawler crashes.  If you'd like to run only The Listener, navigate to the listener directory and run `node listener.js`. A side effect of the project being split, is that before either part is run, you have to run `npm install` in each directory so Node can install the proper dependencies.
 
 The Crawler can run with no configuration if you don't care to log your findings, just rename `config.sample.js` to `config.js` and it'll report a warning about MySQL, but if you don't want logging it's fine.

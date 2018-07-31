@@ -91,9 +91,25 @@ function addPeerEvents(peer) {
 		delete peers[peer.host];
 		setTimeout(function() {
 			if (peer.connectTries < 2) { //Connect three times, if we got here, it's been 1 already
+				var query = `update active_peer set retries = ${peer.connectTries} where ip = '${peer.host}'`;
+				connection.query(query, function(err, results, fields) {
+					if (err) {
+						console.log("Error, can't guarantee addition to database", err);
+					}
+					console.log("Crawler: Updated MySQL number of tries on", peer.host);
+				});
 				console.log("Crawler: Connecting to", peer.host, "for the", peer.connectTries+2, "time");
 				peer.connectTries++;
 				peer.connect();
+			}
+			else {
+				var query = `delete from active_peer where ip = '${peer.host}'`;
+				connection.query(query, function(err, results, fields) {
+					if (err) {
+						console.log("Error, can't guarantee removal from database", err);
+					}
+					console.log("Crawler: Removed", peer.host, "from list of peers in MySQL");
+				});
 			}
 		}, 5000);
 	});
@@ -108,6 +124,13 @@ function addPeerEvents(peer) {
 		var messages = new Messages();
 		var message = messages.GetAddr();
 		peer.sendMessage(message);
+		var query = `insert into active_peer (ip, retries) values ('${peer.host}', 0) on duplicate key update retries = 0`;
+		connection.query(query, function(err, results, fields) {
+			if (err) {
+				console.log("Error, can't guarantee addition to database", err);
+			}
+			console.log("Crawler: Marked IP as visited", peer.host);
+		});
 	});
 
 	peer.on('addr', function(message) {
@@ -141,14 +164,13 @@ function crawl(seed) {
 var peers = {}; //Map of peers
 var queue = [];
 var next = 10;
-fs.readFile('knownHosts.txt', 'utf8', function (err, data) {
+connection.query(`select ip from active_peer`, function (err, results, fields) {
 	if (err) {
-		console.log('Error reading knownHosts.txt, using default host');
+		console.log("Could not recover peers, starting from known beginning, make sure MySQL is up", err);
 		queue.push('18.194.171.146');
 	}
 	else {
-		console.log('Found a knownHosts.txt file, using those hosts to initialize crawler queue');
-		queue = data.split(',');
+		queue = results.map(obj => obj.ip);
 	}
 	setInterval(function () {
 		if (queue.length > 0 && next > 0) {
@@ -156,10 +178,7 @@ fs.readFile('knownHosts.txt', 'utf8', function (err, data) {
 			crawl(queue.shift());
 		}
 	}, 1000);
-	crawl('18.194.171.146');
-
 });
-
 /**********************************************************
 *                       API BEGINS HERE                   *
 **********************************************************/
@@ -243,11 +262,13 @@ setInterval(function() {
 		console.log("Addr Interval: sending addr to", peer);
 		sendAddrMessage(peers[peer]);
 	}
-}, .5 * 60 * 1000); //Run every 10 minutes;
+}, 10 * 60 * 1000); //Run every 10 minutes;
 
 /************************************************
 *	Uncaught Error Handling or Exit 	*
  ***********************************************/
+//This is only here for the case where MySQL may be down.  At which point, knownHosts will have the most recent list of peers
+//as of the last crawler crash. 
 function flushPeers() {
  	fs.writeFile('knownHosts.txt', Object.keys(peers).toString(), function(fsErr) {
 		if (fsErr) {

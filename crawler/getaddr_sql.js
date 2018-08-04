@@ -110,6 +110,12 @@ function addPeerEvents(peer) {
 					}
 					console.log("Crawler: Removed", peer.host, "from list of peers in MySQL");
 				});
+				connection.query(`insert into eventLog (ip, port, event) values ('${peer.host}', '${peer.port}', 'DISCONNECTED')`, function (err) {
+					if (err) {
+						console.log("Error, can't guarantee addition to database", err);
+					}
+					console.log("Crawler: Added disconnect to event log for", peer.host, ":", peer.port);
+				});
 			}
 		}, 5000);
 	});
@@ -130,6 +136,12 @@ function addPeerEvents(peer) {
 				console.log("Error, can't guarantee addition to database", err);
 			}
 			console.log("Crawler: Marked IP as visited", peer.host);
+		});
+		connection.query(`insert into eventLog (ip, port, event) values ('${peer.host}', ${peer.port}, 'CONNECTED')`, function (err) {
+			if (err) {
+				console.log("Error, can't guarantee addition to database", err);
+			}
+			console.log("Crawler: Added IP to the event log", peer.host);
 		});
 	});
 
@@ -164,6 +176,15 @@ function crawl(seed) {
 var peers = {}; //Map of peers
 var queue = [];
 var next = 10;
+connection.query(`insert into eventLog (ip, port, event) values ('0.0.0.0', 0, 'STARTUP')`, function (err, results, fields) {
+	if (err) {
+		console.log("Could not log startup of the crawler");
+	}
+	else {
+		console.log("Started event logging");
+	}
+});
+
 connection.query(`select ip from active_peer`, function (err, results, fields) {
 	if (err) {
 		console.log("Could not recover peers, starting from known beginning, make sure MySQL is up", err);
@@ -171,6 +192,9 @@ connection.query(`select ip from active_peer`, function (err, results, fields) {
 	}
 	else {
 		queue = results.map(obj => obj.ip);
+		if (queue.length === 0) {
+			queue.push('18.194.171.146');
+		}
 	}
 	setInterval(function () {
 		if (queue.length > 0 && next > 0) {

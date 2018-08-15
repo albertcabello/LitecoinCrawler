@@ -85,6 +85,7 @@ function addPeerEvents(peer) {
 		});
 		console.log("Crawler: Error reaching", peer.host, error.errno);
 		next++;
+		connectionLog.unshift(0);
 	});
 
 	peer.on('disconnect', function() {
@@ -128,6 +129,7 @@ function addPeerEvents(peer) {
 		console.log("Crawler: Connected to", peer.host);
 		peers[peer.host] = peer;
 		successfulNumberOfConnections++;
+		connectionLog.unshift(1);
 		var messages = new Messages();
 		var message = messages.GetAddr();
 		peer.sendMessage(message);
@@ -179,6 +181,7 @@ var queue = [];
 var next = 10;
 var totalNumberOfConnections = 0;
 var successfulNumberOfConnections = 0;
+var connectionLog = [];
 connection.query(`insert into eventLog (ip, port, event) values ('0.0.0.0', 0, 'STARTUP')`, function (err, results, fields) {
 	if (err) {
 		console.log("Could not log startup of the crawler");
@@ -286,6 +289,15 @@ app.get('/efficiency', function (req, res) {
 	else {
 		res.status(400).send({error: 'It is too soon to get the efficiency, it is a division by zero'});
 	}
+});
+
+app.get('/efficiency/:total', function (req, res) {
+	console.log("API: Received efficiency request");
+	let count = 0;
+	for (let i = 0; i < req.params.total; i++) {
+		count += connectionLog[i];
+	}
+	res.status(200).send({efficiency: count / totalNumberOfConnections});
 });
 
 app.listen(3000);

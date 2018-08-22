@@ -294,7 +294,7 @@ app.get('/efficiency', function (req, res) {
 app.get('/efficiency/:total', function (req, res) {
 	console.log("API: Received efficiency request");
 	let count = 0;
-	for (let i = 0; i < req.params.total; i++) {
+	for (let i = 0; i < req.params.total && i < connectionLog.length; i++) {
 		count += connectionLog[i];
 	}
 	res.status(200).send({efficiency: count / totalNumberOfConnections});

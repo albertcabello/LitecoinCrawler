@@ -163,6 +163,17 @@ function addPeerEvents(peer) {
 		});
 		next++;
 	});
+
+	peer.on('inv', function(message) {
+		console.log("Got inv message from", peer.host, message);
+		var query = `insert into inv_messages (ip, message) values('${peer.host}', ${message}) `
+		connection.query(query, function(err, results, fields) {
+			if (err) {
+				console.log("Error", err);
+			}
+			console.log("Crawler: Inserted inv message into mysql for", peer.host);
+		});
+	});
 }
 
 function crawl(seed) {

@@ -3,6 +3,7 @@ FROM mhart/alpine-node:10.1.0
 RUN apk --no-cache add --virtual native-deps \
     g++ gcc libgcc libstdc++ linux-headers make python git && \
     npm install --quiet node-gyp -g && \
+    npm install -g npm@latest && \
     npm install --quiet
 
 WORKDIR /app

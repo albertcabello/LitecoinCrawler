@@ -166,7 +166,7 @@ function addPeerEvents(peer) {
 
 	peer.on('inv', function(message) {
 		console.log("Got inv message from", peer.host, message);
-		var query = `insert into inv_messages (ip, message) values('${peer.host}', ${message}) `
+		var query = `insert into inv_messages (ip, message) values('${peer.host}', '${JSON.stringify(message)}') `
 		connection.query(query, function(err, results, fields) {
 			if (err) {
 				console.log("Error", err);

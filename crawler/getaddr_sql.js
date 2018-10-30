@@ -165,13 +165,25 @@ function addPeerEvents(peer) {
 	});
 
 	peer.on('inv', function(message) {
-		console.log("Got inv message from", peer.host, message);
+		let invTypes = {0: 'ERROR', 1: 'MSG_TX', 2: 'MSG_BLOCK', 3: 'MSG_FILTERED_BLOCK', 4: 'MSG_CMPCT_BLOCK'}
+		console.log("Crawler: Got inv message from", peer.host);
 		var query = `insert into inv_messages (ip, message) values('${peer.host}', '${JSON.stringify(message)}') `
 		connection.query(query, function(err, results, fields) {
 			if (err) {
 				console.log("Error", err);
 			}
 			console.log("Crawler: Inserted inv message into mysql for", peer.host);
+		});
+		
+		message.inventory.map((inv) => {
+			let swapEndian = inv.hash.toString('hex').match(/../g).reverse().join(""); //Regex matches two of any character
+			query = `insert into parsed_inv (ip, port, type, hash) values('${peer.host}', ${peer.port}, '${invTypes[inv.type]}', '${swapEndian}')`
+			connection.query(query, function(err, results, fields) {
+				if (err) {
+					console.log("Crawler: Error:", err);
+				}
+				console.log("Crawler: Inserted parsed inv message into mysql for", peer.host);
+			});
 		});
 	});
 }

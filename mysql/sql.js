@@ -20,7 +20,7 @@ var tables = {
 	activePeersTable : "CREATE TABLE IF NOT EXISTS `active_peer` (`ip` varchar(15) NOT NULL, `retries` tinyint(4) DEFAULT NULL," + 
 	  "PRIMARY KEY (`ip`))",
 
-	eventLogTable : "CREATE TABLE IF NOT EXISTS `eventLog` (" +
+	eventLogTable : "CREATE TABLE IF NOT EXISTS `event_log` (" +
 	  "`timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," + 
 	  "`ip` varchar(15) NOT NULL," + 
 	  "`port` smallint(6) DEFAULT NULL," + 
@@ -54,4 +54,4 @@ for (var table in tables) {
 	});
 }
 
-module.exports = connection;
+module.exports = {connection};

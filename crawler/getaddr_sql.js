@@ -5,30 +5,12 @@ var Networks = require('litecore-lib').Networks;
 var BN = require('bn.js');
 var Messages = require('litecore-p2p').Messages;
 var mysql = require('mysql');
-var config = require('./config.js');
 var http = require('http');
 var net = require('net');
 var fs = require('fs');
+var db = require('../mysql/sql.js');
 
-/************************************************
- *		Initialize MySQL Connection	*
- ***********************************************/
-var connection = mysql.createConnection({
-        host     : config.db.host,
-        user     : config.db.user,
-	port	 : config.db.port,
-        password : config.db.password,
-        database : config.db.database,
-});
-
-connection.connect(function(err) {
-        if (err) {
-		console.log("Error connecting to mysql server", err);
-		return;
-	}
-	console.log("Connected to mysql!");
-});
-
+var connection = db.connection;
 
 /************************************************
  *		Modification of BN.js		*
@@ -77,7 +59,7 @@ function addPeerEvents(peer) {
 	var versionMessage;
 	peer.connectTries = 0;
 	peer.on('error', function(error) { //Peer is unreachable;
-		var query = `insert into ${config.db.table} (ip, error) values('${peer.host}', '${error.errno}')`;
+		var query = `insert into network (ip, error) values('${peer.host}', '${error.errno}')`;
 		connection.query(query, function (err, result, field) {
 			if (err) {
 				console.log("Error:", err);
@@ -154,7 +136,7 @@ function addPeerEvents(peer) {
 			addresses += address.ip.v4 + ",";
 			queue.push(address.ip.v4);
 		});
-		var query = `insert into ${config.db.table} (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
+		var query = `insert into network (ip, getaddr, version) values('${peer.host}', '${addresses}', '${versionMessage}');`
 		connection.query(query, function(err, results, fields) {
 			if (err) {
 				console.log("Error, can't guarantee addition to database", err);

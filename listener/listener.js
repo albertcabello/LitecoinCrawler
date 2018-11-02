@@ -4,8 +4,11 @@ var Networks = require('litecore-lib').Networks;
 var Messages = require('litecore-p2p').Messages;
 var config = require('./config.js');
 var net = require('net');
-var mysql = require('mysql');
-var BN = require('bn.js');
+
+var modBN = require('../shared/modBN.js');
+var db = require('../shared/sql.js');
+
+var BN = modBN.BN;
 
 /************************************************
  *		Modification of Messages	*
@@ -19,45 +22,6 @@ Messages.prototype._buildFromBuffer = function(command, payload) {
   return this.builder.commands[command].fromBuffer(payload);
 };
 
-/************************************************
- *		Modification of BN.js		*
- ***********************************************/
-BN.prototype.toBuffer = function(opts) {
-	var buf, hex;
-	if (opts && opts.size) {
-		hex = this.toString(16, 2);
-		var natlen = hex.length / 2;
-		buf = new Buffer(hex, 'hex');
-
-		if (natlen === opts.size) {
-			buf = buf;
-		} else if (natlen > opts.size) {
-			buf = BN.trim(buf, natlen);
-		} else if (natlen < opts.size) {
-			buf = BN.pad(buf, natlen, opts.size);
-		}
-	} else {
-		hex = this.toString(16, 2);
-		buf = new Buffer(hex, 'hex');
-	}
-
-	if (typeof opts !== 'undefined' && opts.endian === 'little') {
-		buf = reversebuf(buf);
-	}
-
-	return buf;
-};
-
-BN.pad = function(buf, natlen, size) {
-	var rbuf = new Buffer(size);
-	for (var i = 0; i < buf.length; i++) {
-		rbuf[rbuf.length - 1 - i] = buf[buf.length - 1 - i];
-	}
-	for (i = 0; i < size - natlen; i++) {
-		rbuf[i] = 0;
-	}
-	return rbuf;
-};
 
 /************************************************
  *		Listening Server		*

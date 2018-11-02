@@ -2,55 +2,16 @@ var express = require('express');
 var Peer = require('litecore-p2p').Peer;
 var Pool = require('litecore-p2p').Pool;
 var Networks = require('litecore-lib').Networks;
-var BN = require('bn.js');
 var Messages = require('litecore-p2p').Messages;
 var mysql = require('mysql');
 var http = require('http');
 var net = require('net');
 var fs = require('fs');
-var db = require('../mysql/sql.js');
+var db = require('../shared/sql.js');
+var modBN = require('../shared/modBN.js');
 
 var connection = db.connection;
-
-/************************************************
- *		Modification of BN.js		*
- ***********************************************/
-BN.prototype.toBuffer = function(opts) {
-	var buf, hex;
-	if (opts && opts.size) {
-		hex = this.toString(16, 2);
-		var natlen = hex.length / 2;
-		buf = new Buffer(hex, 'hex');
-
-		if (natlen === opts.size) {
-			buf = buf;
-		} else if (natlen > opts.size) {
-			buf = BN.trim(buf, natlen);
-		} else if (natlen < opts.size) {
-			buf = BN.pad(buf, natlen, opts.size);
-		}
-	} else {
-		hex = this.toString(16, 2);
-		buf = new Buffer(hex, 'hex');
-	}
-
-	if (typeof opts !== 'undefined' && opts.endian === 'little') {
-		buf = reversebuf(buf);
-	}
-
-	return buf;
-};
-
-BN.pad = function(buf, natlen, size) {
-	var rbuf = new Buffer(size);
-	for (var i = 0; i < buf.length; i++) {
-		rbuf[rbuf.length - 1 - i] = buf[buf.length - 1 - i];
-	}
-	for (i = 0; i < size - natlen; i++) {
-		rbuf[i] = 0;
-	}
-	return rbuf;
-};
+var BN = modBN.BN;
 
 /************************************************
  *                      Crawler                 *
@@ -199,13 +160,19 @@ connection.query(`insert into eventLog (ip, port, event) values ('0.0.0.0', 0, '
 connection.query(`select ip from active_peer`, function (err, results, fields) {
 	if (err) {
 		console.log("Could not recover peers, starting from known beginning, make sure MySQL is up", err);
-		queue.push('18.194.171.146');
 	}
 	else {
 		queue = results.map(obj => obj.ip);
-		if (queue.length === 0) {
-			queue.push('18.194.171.146');
-		}
+	}
+
+	if (queue.length === 0) { //If at this point queue is empty, join a pool for some people
+		console.log("Joining a pool");
+		//Connect to a pool to get people
+		var pool = new Pool({network: Networks.livenet});
+		pool.connect();
+		pool.on('peerinv', function(peer, message) {
+			queue.push(peer.host);
+		});
 	}
 	setInterval(function () {
 		if (queue.length > 0 && next > 0) {

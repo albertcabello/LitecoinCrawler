@@ -11,7 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.16.3",
-    "litecore-p2p": "^1.1.2",
     "npm": "^6.1.0"
   }
 }

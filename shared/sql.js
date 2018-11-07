@@ -46,6 +46,14 @@ var tables = {
 	  "`type` varchar(20) DEFAULT NULL," + 
 	  "`hash` varchar(70) DEFAULT NULL," + 
 	  "`timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)",
+
+	  successesTable : "CREATE TABLE IF NOT EXISTS `successes` (" +
+	    "`ip` varchar(16) DEFAULT NULL," + 
+	    "`port` smallint(5) DEFAULT NULL," + 
+  	    "`hash` varchar(70) DEFAULT NULL," + 
+	    "`explorerTime` timestamp(6) NULL DEFAULT NULL," + 
+	    "`ourtime` timestamp(6) NULL DEFAULT NULL," + 
+	    "`success` smallint(5) DEFAULT NULL",
 }
 
 for (var table in tables) {

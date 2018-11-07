@@ -178,7 +178,7 @@ app.get('/efficiency/:total', function (req, res) {
 	res.status(200).send({efficiency: count / totalNumberOfConnections});
 });
 
-app.listen(3000);
+app.listen(8000);
 
 /*********************************************
 *	    Interval to Ping Peers	     *

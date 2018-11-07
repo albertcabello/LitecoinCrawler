@@ -3,6 +3,7 @@ var litecore_lib = require('litecore-lib');
 var Messages = litecore_p2p.Messages;
 var db = require('./sql.js');
 var connection = db.connection;
+var fetch = require('node-fetch');
 
 function addPeerEvents(peer) { //The shared mysql logging for certain peer events
 	var versionMessage;
@@ -88,6 +89,10 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 	});
 
 	peer.on('inv', function(message) {
+		let myTime = Date.now();
+		let res = myTime.toISOString();
+		res = res.replace('T', ' ');
+		res = res.replace('Z', '');
 		let invTypes = {0: 'ERROR', 1: 'MSG_TX', 2: 'MSG_BLOCK', 3: 'MSG_FILTERED_BLOCK', 4: 'MSG_CMPCT_BLOCK'}
 		//console.log("Crawler: Got inv message from", peer.host);
 		var query = `insert into inv_messages (ip, message) values('${peer.host}', '${JSON.stringify(message)}') `
@@ -106,6 +111,27 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 					console.log("Crawler: Error:", err);
 				}
 		//		console.log("Crawler: Inserted parsed inv message into mysql for", peer.host);
+			});
+			fetch('https://api.blockcypher.com/v1/ltc/main/txs/' + swapEndian).then((res) => {
+				return res.json();
+			}).then((json) => {
+				let theirTime = new Date(json.received);
+				let theirRes = theirTime.toISOString();
+				theirRes.replace('T', ' ');
+				theirRes.replace('Z', '');
+				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', ${theirRes}, ${res}, ${(myTime < thierTime) ? 1 : 0})`
+				connection.query(query, function(err, results, fields) {
+					if (err) {
+						console.log("Crawler: Error:", err);
+					}
+				});
+			}).catch((err) => { //if they don't even have the transaction, we beat them
+				query = `insert into successes (ip, port, hash, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', 1)`
+				connection.query(query, function(err, results, fields) {
+					if (err) {
+						console.log("Crawler: Error:", err);
+					}
+				});
 			});
 		});
 	});

@@ -134,14 +134,14 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				let theirRes = theirTime.toISOString();
 				theirRes.replace('T', ' ');
 				theirRes.replace('Z', '');
-				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', ${theirRes}, ${res}, ${(myTime < thierTime) ? 1 : 0})`
+				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', '${theirRes}', '${res}', ${(myTime < thierTime) ? 1 : 0})`
 				connection.query(query, function(err, results, fields) {
 					if (err) {
 						console.log("Crawler: Error:", err);
 					}
 				});
 			}).catch((err) => { //if they don't even have the transaction, we beat them
-				query = `insert into successes (ip, port, hash, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', 1)`
+				query = `insert into successes (ip, port, hash, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', '${res}', 1)`
 				connection.query(query, function(err, results, fields) {
 					if (err) {
 						console.log("Crawler: Error:", err);

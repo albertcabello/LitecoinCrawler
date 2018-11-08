@@ -2,8 +2,11 @@ var litecore_p2p = require('litecore-p2p');
 var litecore_lib = require('litecore-lib');
 var Messages = litecore_p2p.Messages;
 var db = require('./sql.js');
+var modBN = require('./modBN.js');
 var connection = db.connection;
 var fetch = require('node-fetch');
+
+var BN = modBN.BN;
 
 function sendAddrMessage(peer) {
 	var messages = new Messages();
@@ -55,7 +58,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 					}
 					console.log("Crawler: Removed", peer.host, "from list of peers in MySQL");
 				});
-				connection.query(`insert into eventLog (ip, port, event) values ('${peer.host}', '${peer.port}', 'DISCONNECTED')`, function (err) {
+				connection.query(`insert into event_log (ip, port, event) values ('${peer.host}', '${peer.port}', 'DISCONNECTED')`, function (err) {
 					if (err) {
 						console.log("Error, can't guarantee addition to database", err);
 					}
@@ -81,7 +84,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 			}
 			console.log("Crawler: Marked IP as visited", peer.host);
 		});
-		connection.query(`insert into eventLog (ip, port, event) values ('${peer.host}', ${peer.port}, 'CONNECTED')`, function (err) {
+		connection.query(`insert into event_log (ip, port, event) values ('${peer.host}', ${peer.port}, 'CONNECTED')`, function (err) {
 			if (err) {
 				console.log("Error, can't guarantee addition to database", err);
 			}

@@ -55,7 +55,7 @@ var next = 10;
 var totalNumberOfConnections = 0;
 var successfulNumberOfConnections = 0;
 var connectionLog = [];
-connection.query(`insert into eventLog (ip, port, event) values ('0.0.0.0', 0, 'STARTUP')`, function (err, results, fields) {
+connection.query(`insert into event_log (ip, port, event) values ('0.0.0.0', 0, 'STARTUP')`, function (err, results, fields) {
 	if (err) {
 		console.log("Could not log startup of the crawler");
 	}

@@ -52,7 +52,7 @@ var server = net.createServer(function(socket) {
 		peers[peer.host] = peer;
 	});
 
-	addPeerEvents(peer);
+	sharedPeerLibrary.addPeerEvents(peer);
 	if (peer.host.startsWith("::ffff")) {
 		peer.host = peer.host.substring(7);
 	}

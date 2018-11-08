@@ -1,3 +1,5 @@
+var express = require('express');
+var cors = require('cors');
 var config = require('./config.js');
 var net = require('net');
 
@@ -63,27 +65,74 @@ server.listen(config.server.port, function () {
 });
 
 /*********************************************
+*          	    API			     * 
+*********************************************/
+var app = express();
+app.use(cors());
+app.get('/ping/:ip', function (req, res) {
+        var peer = peers[req.params.ip];
+        if (peer === undefined) {
+                res.status(500).send( { error: 'IP is not in the crawl set' });
+        }
+        else {
+                //This can only occur once to
+                //a) prevent a header failure in express
+                //b) prevent this from being called in future pings that aren't relevant to this route
+                peer.once('pong', function () {
+                        res.send( { success: 'Received ping reply from the ip' });
+                });
+
+                var messages = new Messages();
+                var pingMessage = messages.Ping();
+                peer.sendMessage(pingMessage);
+        }
+});
+
+app.get('/addr/:ip', function (req, res) {
+        var peer = peers[req.params.ip];
+	console.log("API: Received request", req.params.ip);
+        if (peer === undefined) { //Peer doesn't exist, hopefully you know what you're doing
+                peer = new Peer({host: req.params.ip});
+
+                //This can only occur once to
+                //a) prevent a header failure in express
+                //b) prevent this from being called again in the usual addr calls
+                peer.once('error', (error) => { //Looks like you don't know what you're doing if you got here
+                        res.status(400).send({error: error });
+                });
+
+                peer.once('ready', () => { //Wow, you did know what you were doing
+                        sharedPeerLibrary.sendAddrMessage(peer);
+                        res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
+                        peers[peer.host] = peer; //Add in the connection
+                });
+
+                peer.connect();
+        }
+        else {
+		if (peer.status === Peer.STATUS.READY) {
+			sharedPeerLibrary.sendAddrMessage(peer);
+			res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
+		}
+		else {
+			res.status(400).send({error: 'I am not connected to that IP or that IP is not ready'});
+		}
+        }
+});
+
+app.get('/count', function (req, res) {
+	res.status(200).send({count: Object.keys(peers).length});
+});
+
+app.listen(9000);
+
+/*********************************************
 *           Interval to Ping Peers           *
 *********************************************/
-function sendAddrMessage(peer) {
-	var messages = new Messages();
-	var addrMessage = messages.Addresses([
-		{
-			services: new BN('d', 16),
-			ip: {
-				v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
-				v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
-			},
-			port: 7334,
-			time: new Date(),
-		},
-	]);
-	peer.sendMessage(addrMessage);
-}
 
 setInterval(function() {
 	for (var peer in peers) {
 		console.log("Addr Interval: sending addr to", peer);
-		sendAddrMessage(peers[peer]);
+		sharedPeerLibrary.sendAddrMessage(peers[peer]);
 	}
 }, 10 * 60 * 1000); //Run every 10 minutes;

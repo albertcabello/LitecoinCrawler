@@ -1,4 +1,5 @@
 var express = require('express');
+var cors = require('cors');
 var http = require('http');
 var net = require('net');
 var fs = require('fs');
@@ -91,23 +92,8 @@ connection.query(`select ip from active_peer`, function (err, results, fields) {
 /**********************************************************
 *                       API BEGINS HERE                   *
 **********************************************************/
-function sendAddrMessage(peer) {
-	var messages = new Messages();
-	var addrMessage = messages.Addresses([
-		{
-			services: new BN('d', 16),
-			ip: {
-				v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
-				v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
-			},
-			port: 7334,
-			time: new Date(),
-		},
-	]);
-	peer.sendMessage(addrMessage);
-}
-
 var app = express();
+app.use(cors()); //Allows CORS
 app.get('/ping/:ip', function (req, res) {
         var peer = peers[req.params.ip];
         if (peer === undefined) {
@@ -141,7 +127,7 @@ app.get('/addr/:ip', function (req, res) {
                 });
 
                 peer.once('ready', () => { //Wow, you did know what you were doing
-                        sendAddrMessage(peer);
+                        sharedPeerLibrary.sendAddrMessage(peer);
                         res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
                         peers[peer.host] = peer; //Add in the connection
                 });
@@ -150,7 +136,7 @@ app.get('/addr/:ip', function (req, res) {
         }
         else {
 		if (peer.status === Peer.STATUS.READY) {
-			sendAddrMessage(peer);
+			sharedPeerLibrary.sendAddrMessage(peer);
 			res.status(200).send({success: 'Done, this does not guarantee the IP got it, just that I sent it'});
 		}
 		else {
@@ -186,7 +172,7 @@ app.listen(8000);
 setInterval(function() {
 	for (var peer in peers) {
 		console.log("Addr Interval: sending addr to", peer);
-		sendAddrMessage(peers[peer]);
+		sharedPeerLibrary.sendAddrMessage(peers[peer]);
 	}
 }, 10 * 60 * 1000); //Run every 10 minutes;
 

@@ -53,7 +53,7 @@ var tables = {
   	    "`hash` varchar(70) DEFAULT NULL," + 
 	    "`explorerTime` timestamp(6) NULL DEFAULT NULL," + 
 	    "`ourtime` timestamp(6) NULL DEFAULT NULL," + 
-	    "`success` smallint(5) DEFAULT NULL",
+	    "`success` smallint(5) DEFAULT NULL)",
 }
 
 for (var table in tables) {

@@ -9,6 +9,8 @@
   "author": "Alberto Cabello",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.16.4",
     "litecore-p2p": "^1.1.2"
   },
   "devDependencies": {}

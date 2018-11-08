@@ -1,0 +1,28 @@
+.item {
+	padding: 5px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	background-color: white;
+	border: 1px solid black;
+	width: 400px;
+	height: 80px;
+	border-radius: 5px;
+}
+
+.title {
+	display: flex;
+	flex-direction: horizontal;
+	justify-content: center;
+	font-weight: bold;
+	font-size: 16px;
+	margin: 2px;
+}
+
+.success {
+	color: green;
+}
+
+.error {
+	color: red;
+}

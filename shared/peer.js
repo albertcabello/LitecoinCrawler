@@ -5,14 +5,29 @@ var db = require('./sql.js');
 var connection = db.connection;
 var fetch = require('node-fetch');
 
+function sendAddrMessage(peer) {
+	var messages = new Messages();
+	var addrMessage = messages.Addresses([
+		{
+			services: new BN('d', 16),
+			ip: {
+				v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
+				v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
+			},
+			port: 7334,
+			time: new Date(),
+		},
+	]);
+	peer.sendMessage(addrMessage);
+}
+
 function addPeerEvents(peer) { //The shared mysql logging for certain peer events
 	var versionMessage;
 	peer.connectTries = 0;
 	peer.on('error', function(error) { //Peer is unreachable;
 		var query = `insert into network (ip, error) values('${peer.host}', '${error.errno}')`;
 		connection.query(query, function (err, result, field) {
-			if (err) {
-				console.log("Error:", err);
+			if (err) { console.log("Error:", err);
 			}
 		});
 		console.log("Crawler: Error reaching", peer.host, error.errno);
@@ -89,7 +104,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 	});
 
 	peer.on('inv', function(message) {
-		let myTime = Date.now();
+		let myTime = new Date();
 		let res = myTime.toISOString();
 		res = res.replace('T', ' ');
 		res = res.replace('Z', '');
@@ -138,4 +153,4 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 }
 
 
-module.exports = {addPeerEvents, litecore_p2p, litecore_lib};
+module.exports = {addPeerEvents, litecore_p2p, litecore_lib, sendAddrMessage};

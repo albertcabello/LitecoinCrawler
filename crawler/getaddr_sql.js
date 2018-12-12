@@ -148,7 +148,7 @@ app.get('/addr/:ip', function (req, res) {
 app.get('/efficiency', function (req, res) {
 	console.log("API: Received efficiency request");
 	if (totalNumberOfConnections) {
-		res.status(200).send({efficiency: successfulNumberOfConnections * 1.0 / totalNumberOfConnections});
+		res.status(200).send({efficiency: successfulNumberOfConnections * 1.0 / totalNumberOfConnections, count: Object.keys(peers).length});
 	}
 	else {
 		res.status(400).send({error: 'It is too soon to get the efficiency, it is a division by zero'});
@@ -164,7 +164,7 @@ app.get('/efficiency/:total', function (req, res) {
 	res.status(200).send({efficiency: count / totalNumberOfConnections});
 });
 
-app.listen(8000);
+app.listen(7334);
 
 /*********************************************
 *	    Interval to Ping Peers	     *

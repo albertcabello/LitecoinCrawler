@@ -13,7 +13,7 @@ export class HealthMonitor extends React.Component<{}, {crawler: {crawlerHealth:
 
 	componentDidMount() {
 		let me = this;
-		fetch('http://localhost:8000/efficiency').then(function(response) {
+		fetch('http://camp-us-02.cis.fiu.edu:7332/efficiency').then(function(response) {
 			if (response.status == 200) {
 				return response.json();
 			}
@@ -31,7 +31,7 @@ export class HealthMonitor extends React.Component<{}, {crawler: {crawlerHealth:
 			me.setState({crawler: {crawlerHealth: false, crawlerEfficiency: -1, crawlerCount: -1}, listener: me.state.listener});
 		});
 
-		fetch('http://localhost:9000/count').then(function(response) {
+		fetch('http://camp-us-02.cis.fiu.edu:7331/count').then(function(response) {
 			return response.json();
 		}).then(function(json) {	
 			me.setState({crawler: me.state.crawler, listener: {listenerHealth: true, listenerCount: json.count}});
@@ -45,7 +45,7 @@ export class HealthMonitor extends React.Component<{}, {crawler: {crawlerHealth:
 	render() {
 		return (
 			<div>
-				<div className={styles['item']}>
+				<div className={styles['item']} style={{float: 'left'}}>
 					<div className={styles['title']}>Crawler Overview</div>
 					<div className={ this.state.crawler.crawlerHealth ? styles['success'] : styles['error']}>
 						<div>Crawler Health: <b>{ this.state.crawler.crawlerHealth ? "Up!" : "Down :(" }</b></div>
@@ -55,7 +55,7 @@ export class HealthMonitor extends React.Component<{}, {crawler: {crawlerHealth:
 						<div>Crawler Connection Count: <b>{this.state.crawler.crawlerCount == -1 ? "NA" : this.state.crawler.crawlerCount}</b></div>
 					</div>
 				</div>
-				<div className={styles['item']}>
+				<div className={styles['item']} style={{float: 'right'}}>
 					<div className={styles['title']}>Listener Overview</div>
 					<div className={ this.state.listener.listenerHealth ? styles['success'] : styles['error']}>
 						<div>Listener Health: <b>{ this.state.listener.listenerHealth ? "Up!" : "Down :("}</b></div>

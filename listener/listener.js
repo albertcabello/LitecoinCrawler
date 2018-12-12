@@ -124,7 +124,7 @@ app.get('/count', function (req, res) {
 	res.status(200).send({count: Object.keys(peers).length});
 });
 
-app.listen(9000);
+app.listen(7333);
 
 /*********************************************
 *           Interval to Ping Peers           *

@@ -17,7 +17,7 @@ function sendAddrMessage(peer) {
 				v6: '0000:0000:0000:0000:0000:ffff:835e:80f2', //camp-us-02.cis.fiu.edu IPv6 address
 				v4: '131.94.128.242', //camp-us-02.cis.fiu.edu IPv4 address
 			},
-			port: 7334,
+			port: 9332,
 			time: new Date(),
 		},
 	]);
@@ -107,10 +107,8 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 	});
 
 	peer.on('inv', function(message) {
-		let myTime = new Date();
-		let res = myTime.toISOString();
-		res = res.replace('T', ' ');
-		res = res.replace('Z', '');
+		let myTime = Date.now() / 1000; //Get epoch time in seconds
+
 		let invTypes = {0: 'ERROR', 1: 'MSG_TX', 2: 'MSG_BLOCK', 3: 'MSG_FILTERED_BLOCK', 4: 'MSG_CMPCT_BLOCK'}
 		//console.log("Crawler: Got inv message from", peer.host);
 		var query = `insert into inv_messages (ip, message) values('${peer.host}', '${JSON.stringify(message)}') `
@@ -120,7 +118,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 			}
 		//	console.log("Crawler: Inserted inv message into mysql for", peer.host);
 		});
-		
+
 		message.inventory.map((inv) => {
 			let swapEndian = inv.hash.toString('hex').match(/../g).reverse().join(""); //Regex matches two of any character
 			query = `insert into parsed_inv (ip, port, type, hash) values('${peer.host}', ${peer.port}, '${invTypes[inv.type]}', '${swapEndian}')`
@@ -130,24 +128,26 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				}
 		//		console.log("Crawler: Inserted parsed inv message into mysql for", peer.host);
 			});
-			fetch('https://api.blockcypher.com/v1/ltc/main/txs/' + swapEndian).then((res) => {
+			fetch('https://chain.so/api/v2/get_tx/ltc/' + swapEndian).then((res) => {
 				return res.json();
 			}).then((json) => {
-				let theirTime = new Date(json.received);
-				let theirRes = theirTime.toISOString();
-				theirRes.replace('T', ' ');
-				theirRes.replace('Z', '');
-				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', '${theirRes}', '${res}', ${(myTime < thierTime) ? 1 : 0})`
+				let theirTime = json.data.time;
+				console.log("Crawler: Inv Comparison:", myTime < theirTime, "Our Time:", myTime, "Their time:", theirTime, swapEndian);
+				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success)` + 
+					` values('${peer.host}', ${peer.port}, '${swapEndian}', FROM_UNIXTIME(${theirTime})` + 
+					`, FROM_UNIXTIME(${myTime}), ${(myTime < theirTime) ? 1 : 0})`
 				connection.query(query, function(err, results, fields) {
 					if (err) {
 						console.log("Crawler: Error:", err);
 					}
+					console.log("Crawler: Inserted inv comparison");
 				});
-			}).catch((err) => { //if they don't even have the transaction, we beat them
-				query = `insert into successes (ip, port, hash, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', '${res}', 1)`
-				connection.query(query, function(err, results, fields) {
-					if (err) {
-						console.log("Crawler: Error:", err);
+			}).catch((err) => { //if they don't even have the transaction, we beat them TODO: check if this is neccesary 
+				console.log("ERROR:", err);
+				query = `insert into successes (ip, port, hash, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', '${myTime}', 1)`
+				connection.query(query, function(error, results, fields) {
+					if (error) {
+						console.log("Crawler: Error:", error);
 					}
 				});
 			});

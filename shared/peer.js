@@ -8,6 +8,9 @@ var fetch = require('node-fetch');
 
 var BN = modBN.BN;
 
+var txs = {}; //Stores results of txs to prevent API calling duplicates
+var queryAPI = true;
+
 function sendAddrMessage(peer) {
 	var messages = new Messages();
 	var addrMessage = messages.Addresses([
@@ -121,6 +124,10 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 
 		message.inventory.map((inv) => {
 			let swapEndian = inv.hash.toString('hex').match(/../g).reverse().join(""); //Regex matches two of any character
+			if (swapEndian in txs) { //If we've seen the transaction, also quit
+				return;
+			}
+			txs[swapEndian] = {myTime: myTime, explorerTime: null};
 			query = `insert into parsed_inv (ip, port, type, hash) values('${peer.host}', ${peer.port}, '${invTypes[inv.type]}', '${swapEndian}')`
 			connection.query(query, function(err, results, fields) {
 				if (err) {
@@ -128,10 +135,23 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				}
 		//		console.log("Crawler: Inserted parsed inv message into mysql for", peer.host);
 			});
-			fetch('https://chain.so/api/v2/get_tx/ltc/' + swapEndian).then((res) => {
+			if (!queryAPI) { //If we can't query the API due to rate limiting, just quit
+				console.log("Crawler: Rate limited");
+				return;
+			}
+			fetch('https://api.blockcypher.com/v1/ltc/main/txs/' + swapEndian).then((res) => {
 				return res.json();
 			}).then((json) => {
-				let theirTime = json.data.time;
+				if ('error' in json && queryAPI == true) { //We're rate limited, and to prevent stacking the timer, only run this if queryAPI true
+					queryAPI = false;
+					setTimeout(function() {
+						queryAPI = true; //wait an hour for the next API call
+					}, 1000 * 60 * 60);
+					throw new Error(json.error);
+				}
+				console.log(json);
+				let theirTime = Date.parse(json.received);
+				txs[swapEndian].explorerTime = theirTime;
 				console.log("Crawler: Inv Comparison:", myTime < theirTime, "Our Time:", myTime, "Their time:", theirTime, swapEndian);
 				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success)` + 
 					` values('${peer.host}', ${peer.port}, '${swapEndian}', FROM_UNIXTIME(${theirTime})` + 
@@ -144,12 +164,14 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				});
 			}).catch((err) => { //if they don't even have the transaction, we beat them TODO: check if this is neccesary 
 				console.log("ERROR:", err);
+				/*
 				query = `insert into successes (ip, port, hash, ourTime, success) values('${peer.host}', ${peer.port}, '${swapEndian}', '${myTime}', 1)`
 				connection.query(query, function(error, results, fields) {
 					if (error) {
 						console.log("Crawler: Error:", error);
 					}
 				});
+				*/
 			});
 		});
 	});

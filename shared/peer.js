@@ -96,6 +96,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 	});
 
 	peer.on('addr', function(message) {
+		console.log(process.memoryUsage().rss);
 		var addresses = "";
 		message.addresses.forEach(function(address) {
 			addresses += address.ip.v4 + ",";
@@ -135,6 +136,8 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				}
 		//		console.log("Crawler: Inserted parsed inv message into mysql for", peer.host);
 			});
+			console.log("Crawler: Received:", swapEndian);
+
 			if (!queryAPI) { //If we can't query the API due to rate limiting, just quit
 				console.log("Crawler: Rate limited");
 				return;
@@ -149,9 +152,9 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 					}, 1000 * 60 * 60);
 					throw new Error(json.error);
 				}
-				console.log(json);
-				let theirTime = Date.parse(json.received);
+				let theirTime = Date.parse(json.received) / 1000; //Convert to seconds from epoch
 				txs[swapEndian].explorerTime = theirTime;
+				console.log(txs[swapEndian]);
 				console.log("Crawler: Inv Comparison:", myTime < theirTime, "Our Time:", myTime, "Their time:", theirTime, swapEndian);
 				query = `insert into successes (ip, port, hash, explorerTime, ourTime, success)` + 
 					` values('${peer.host}', ${peer.port}, '${swapEndian}', FROM_UNIXTIME(${theirTime})` + 
@@ -173,6 +176,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				});
 				*/
 			});
+
 		});
 	});
 }

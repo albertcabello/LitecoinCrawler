@@ -38,6 +38,7 @@ var server = net.createServer(function(socket) {
 	var peer;
 	try {
 		var peer = new Peer({socket: socket, network: Networks.livenet});
+		console.log("Turned", socket.remoteAddress, "into a peer");
 	}
 	catch (e) {
 		console.log("Could not turn connection to peer, maybe it's not a peer?", e);
@@ -45,7 +46,12 @@ var server = net.createServer(function(socket) {
 	}
 	sharedPeerLibrary.addPeerEvents(peer);
 	//Custom peer handling
+	peer.on('error', function(err) {
+		console.log("Error with peer", peer.host, err);
+	});
+
 	peer.on('disconnect', function() {
+		console.log("Disconnected from", peer.host);
 		delete peers[peer.host];
 	});
 	peer.on('ready', function() {
@@ -119,6 +125,11 @@ app.get('/addr/:ip', function (req, res) {
 		}
         }
 });
+
+app.get('/list', function (req, res) {
+	res.status(200).send(JSON.stringify(serverPeers));
+});
+	
 
 app.get('/count', function (req, res) {
 	res.status(200).send({count: Object.keys(peers).length});

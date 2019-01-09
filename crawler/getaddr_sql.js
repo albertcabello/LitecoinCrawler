@@ -38,7 +38,9 @@ function crawl(seed) {
 		peer.on('addr', function(message) {
 			next++;
 			message.addresses.forEach(function(address) {
-				queue.push(address.ip.v4);
+				if (!(peers.hasOwnProperty(address.ip.v4)) || queue.includes(address.ip.v4) ) { //Saves memory on the queue by preventing adding duplicates
+					queue.push(address.ip.v4);
+				}
 			});
 
 		});

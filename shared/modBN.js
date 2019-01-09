@@ -7,7 +7,7 @@ BN.prototype.toBuffer = function(opts) {
 	if (opts && opts.size) {
 		hex = this.toString(16, 2);
 		var natlen = hex.length / 2;
-		buf = new Buffer(hex, 'hex');
+		buf = Buffer.from(hex, 'hex');
 
 		if (natlen === opts.size) {
 			buf = buf;
@@ -18,7 +18,7 @@ BN.prototype.toBuffer = function(opts) {
 		}
 	} else {
 		hex = this.toString(16, 2);
-		buf = new Buffer(hex, 'hex');
+		buf = Buffer.from(hex, 'hex');
 	}
 
 	if (typeof opts !== 'undefined' && opts.endian === 'little') {
@@ -29,7 +29,7 @@ BN.prototype.toBuffer = function(opts) {
 };
 
 BN.pad = function(buf, natlen, size) {
-	var rbuf = new Buffer(size);
+	var rbuf = Buffer.alloc(size);
 	for (var i = 0; i < buf.length; i++) {
 		rbuf[rbuf.length - 1 - i] = buf[buf.length - 1 - i];
 	}

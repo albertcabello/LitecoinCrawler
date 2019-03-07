@@ -7,6 +7,7 @@ var connection = db.connection;
 var fetch = require('node-fetch');
 
 var BN = modBN.BN;
+var Peer = litecore_p2p.Peer;
 
 var txs = {};
 let invTypes = {0: 'ERROR', 1: 'MSG_TX', 2: 'MSG_BLOCK', 3: 'MSG_FILTERED_BLOCK', 4: 'MSG_CMPCT_BLOCK'}
@@ -39,7 +40,7 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 				//console.log("Error:", err);
 			}
 		});
-		//console.log("Crawler: Error reaching", peer.host, error.errno);
+		console.log("Crawler: Error reaching", peer.host, error.errno);
 	});
 
 	peer.on('disconnect', function() {
@@ -76,26 +77,6 @@ function addPeerEvents(peer) { //The shared mysql logging for certain peer event
 
 	peer.on('version', function(message) {
 		versionMessage = JSON.stringify(message);
-	});
-
-	peer.on('ready', function() { //Update the mysql table
-		//console.log("Crawler: Connected to", peer.host);
-		var messages = new Messages();
-		var message = messages.GetAddr();
-		peer.sendMessage(message);
-		var query = `insert into active_peer (ip, retries) values ('${peer.host}', 0) on duplicate key update retries = 0`;
-		connection.query(query, function(err, results, fields) {
-			if (err) {
-				//console.log("Error, can't guarantee addition to database", err);
-			}
-			//console.log("Crawler: Marked IP as visited", peer.host);
-		});
-		connection.query(`insert into event_log (ip, port, event) values ('${peer.host}', ${peer.port}, 'CONNECTED')`, function (err) {
-			if (err) {
-				//console.log("Error, can't guarantee addition to database", err);
-			}
-			//console.log("Crawler: Added IP to the event log", peer.host);
-		});
 	});
 
 	peer.on('addr', function(message) {

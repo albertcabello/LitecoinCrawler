@@ -11,6 +11,8 @@ var Peer = sharedPeerLibrary.litecore_p2p.Peer;
 var Pool = sharedPeerLibrary.litecore_p2p.Pool;
 var Networks = sharedPeerLibrary.litecore_lib.Networks;
 var Messages = sharedPeerLibrary.litecore_p2p.Messages;
+var Hash = sharedPeerLibrary.litecore_lib.crypto.Hash;
+var BufferUtil = sharedPeerLibrary.litecore_lib.util.buffer;
 
 var BN = modBN.BN;
 
@@ -26,50 +28,73 @@ Messages.prototype._buildFromBuffer = function(command, payload) {
   return this.builder.commands[command].fromBuffer(payload);
 };
 
+/************************************************
+ *		Modification of Peer		*
+ ***********************************************/
+Peer.prototype._addSocketEventHandlers = function() {
+  var self = this;
+
+  this.socket.on('error', self._onError.bind(this));
+  this.socket.on('end', self.disconnect.bind(this));
+
+  this.socket.on('data', function(data) {
+    //UNCOMMENT THIS FOR TESTING
+    //console.log("RECEIVED DATA FROM", self.socket.remoteAddress, data);
+    self.dataBuffer.push(data);
+
+    if (self.dataBuffer.length > Peer.MAX_RECEIVE_BUFFER) {
+      // TODO: handle this case better
+      return self.disconnect();
+    }
+    self._readMessage();
+  });
+};
+
+Peer.prototype._sendVersion = function() {
+  // todo: include sending local ip address
+  var message = this.messages.Version({relay: this.relay, services: new BN('d', 16), version: 70015, subversion: '/LitecoinCore:0.16.3/'});
+  this.versionSent = true;
+  this.sendMessage(message);
+};
 
 /************************************************
  *		Listening Server		*
  ***********************************************/
 var peers = {};
-
-var serverPeers = [];
 var server = net.createServer(function(socket) {
 	console.log("Server: Incoming connection from", socket.remoteAddress);
-	var peer;
-	try {
-		var peer = new Peer({socket: socket, network: Networks.livenet});
-		console.log("Turned", socket.remoteAddress, "into a peer");
-	}
-	catch (e) {
-		console.log("Could not turn connection to peer, maybe it's not a peer?", e);
-		socket.destroy();
-	}
+
+	var peer = new Peer({socket: socket, network: Networks.livenet});
 	sharedPeerLibrary.addPeerEvents(peer);
 	//Custom peer handling
-	peer.on('error', function(err) {
-		console.log("Error with peer", peer.host, err);
-	});
-
 	peer.on('disconnect', function() {
 		console.log("Disconnected from", peer.host);
 		delete peers[peer.host];
 	});
 	peer.on('ready', function() {
 		peers[peer.host] = peer;
+		console.log("Peer", peer.host, "is ready");
+	});	
+	peer.on('ping', function(message) {
+		peer._sendPong(message.nonce);
 	});
-
+	let commands = ['version', 'verack', 'ping', 'pong', 'block', 'tx', 'getdata', 'headers', 'notfound', 'inv', 'addr',
+			'alert', 'reject', 'merkleblock', 'filterload', 'filteradd', 'filterclear', 'getblocks', 'getheaders', 'mempool', 'getaddr'];
+	commands.map(cmd => {
+		peer.on(cmd, function(message) {
+			console.log(cmd, 'from', peer.host);
+		});
+	});
 	sharedPeerLibrary.addPeerEvents(peer);
 	if (peer.host.startsWith("::ffff")) {
 		peer.host = peer.host.substring(7);
 	}
 	peers[peer.host] = peer;
-	serverPeers.push(peer.host);
 });
 
 server.listen(config.server.port, function () {
 	console.log("Opened IPv4 server on", server.address());
 });
-
 /*********************************************
 *          	    API			     * 
 *********************************************/
@@ -127,12 +152,12 @@ app.get('/addr/:ip', function (req, res) {
 });
 
 app.get('/list', function (req, res) {
-	res.status(200).send(JSON.stringify(serverPeers));
+	res.status(200).send(Object.keys(peers));
 });
-	
 
 app.get('/count', function (req, res) {
-	res.status(200).send({count: Object.keys(peers).length});
+	//0res.status(200).send({count: Object.keys(peers).length});
+	res.status(200).send({count: pool.numberConnected});
 });
 
 app.listen(7333);
@@ -140,7 +165,6 @@ app.listen(7333);
 /*********************************************
 *           Interval to Ping Peers           *
 *********************************************/
-
 setInterval(function() {
 	for (var peer in peers) {
 		console.log("Addr Interval: sending addr to", peer);

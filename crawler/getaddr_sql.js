@@ -30,11 +30,29 @@ function crawl(seed) {
 		peer.on('disconnect', function() {
 			delete peers[peer.host];
 		});
-		peer.on('ready', function() {
+
+		peer.on('ready', function() { //Update the mysql table
 			peers[peer.host] = peer;
 			successfulNumberOfConnections++;
 			connectionLog.unshift(1);
-		});	
+			//console.log("Crawler: Connected to", peer.host);
+			var messages = new Messages();
+			var message = messages.GetAddr();
+			peer.sendMessage(message);
+			var query = `insert into active_peer (ip, retries) values ('${peer.host}', 0) on duplicate key update retries = 0`;
+			connection.query(query, function(err, results, fields) {
+				if (err) {
+					//console.log("Error, can't guarantee addition to database", err);
+				}
+				//console.log("Crawler: Marked IP as visited", peer.host);
+			});
+			connection.query(`insert into event_log (ip, port, event) values ('${peer.host}', ${peer.port}, 'CONNECTED')`, function (err) {
+				if (err) {
+					//console.log("Error, can't guarantee addition to database", err);
+				}
+				//console.log("Crawler: Added IP to the event log", peer.host);
+			});
+		});
 		peer.on('addr', function(message) {
 			next++;
 			message.addresses.forEach(function(address) {

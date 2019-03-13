@@ -51,18 +51,77 @@ Peer.prototype._addSocketEventHandlers = function() {
 };
 
 Peer.prototype._sendVersion = function() {
+  let words = this.socket.remoteAddress.split(':').map(function(s) {
+    return new Buffer(s, 'hex');
+  });
+  for (let i = 0; i < words.length; i++) {
+    var word = words[i];
+    console.log(word);
+  }
   // todo: include sending local ip address
-  var message = this.messages.Version({relay: this.relay, services: new BN('d', 16), version: 70015, subversion: '/LitecoinCore:0.16.3/'});
+  /*
+  var message = this.messages.Version({
+  	relay: this.relay, 
+	services: new BN('d', 16), 
+	version: 70015, 
+	subversion: '/LitecoinCore:0.16.3/',
+  });
+  */
+  var message = new Messages();
+  var versionMessage = message.Version({
+    relay: this.relay,
+    services: new BN('d', 16),
+    version: this.version,
+    subversion: '/LitecoinCore:0.16.3/'
+  });
+  versionMessage.addrMe = {
+    services: new BN('0', 16),
+    ip: {
+      v6: ipv4toipv6(this.socket.remoteAddress)
+    },
+    port: this.socket.remotePort
+  }
+  versionMessage.addrYou = {
+    services: new BN('d', 16),
+    ip: {
+      v6: '0000:0000:0000:0000:0000:ffff:835e:80f2',
+      v4: '131.94.128.242'
+    },
+    port: 9332
+  }
   this.versionSent = true;
-  this.sendMessage(message);
+  this.sendMessage(versionMessage);
 };
 
 /************************************************
  *		Listening Server		*
  ***********************************************/
+function ipv4toipv6(ipv4) {
+	let temp = ipv4;
+	if (temp.startsWith("::ffff")) {
+		temp = ipv4.substr(7);
+	}
+	let octets = temp.split('.');
+	octets = octets.map(function(s) {
+		let a = Math.floor(s / 16).toString(16);
+		let b = s % 16;
+		return a + b;
+	});
+	let hex = [];
+	for (let i = 0; i <= octets.length / 2; i+=2) {
+		let a = octets[i];
+		let b = octets[i+1];
+		hex.push(a+b);
+	}
+	hex.unshift('ffff');
+	hex.unshift('0000');
+	hex.unshift('0000');
+	return hex.join(':');
+}
+
 var peers = {};
 var server = net.createServer(function(socket) {
-	console.log("Server: Incoming connection from", socket.remoteAddress);
+	console.log("Server: Incoming connection from", socket.remoteAddress, socket.remoteFamily);
 
 	var peer = new Peer({socket: socket, network: Networks.livenet});
 	sharedPeerLibrary.addPeerEvents(peer);
@@ -78,6 +137,9 @@ var server = net.createServer(function(socket) {
 	peer.on('ping', function(message) {
 		peer._sendPong(message.nonce);
 	});
+	peer.on('version', function(message) {
+		peer.versionMessage = message;
+	});
 	let commands = ['version', 'verack', 'ping', 'pong', 'block', 'tx', 'getdata', 'headers', 'notfound', 'inv', 'addr',
 			'alert', 'reject', 'merkleblock', 'filterload', 'filteradd', 'filterclear', 'getblocks', 'getheaders', 'mempool', 'getaddr'];
 	commands.map(cmd => {
@@ -86,9 +148,11 @@ var server = net.createServer(function(socket) {
 		});
 	});
 	sharedPeerLibrary.addPeerEvents(peer);
+	/*
 	if (peer.host.startsWith("::ffff")) {
 		peer.host = peer.host.substring(7);
 	}
+	*/
 	peers[peer.host] = peer;
 });
 
@@ -157,7 +221,7 @@ app.get('/list', function (req, res) {
 
 app.get('/count', function (req, res) {
 	//0res.status(200).send({count: Object.keys(peers).length});
-	res.status(200).send({count: pool.numberConnected});
+	res.status(200).send({count: Object.keys(peers).length});
 });
 
 app.listen(7333);
@@ -170,4 +234,4 @@ setInterval(function() {
 		console.log("Addr Interval: sending addr to", peer);
 		sharedPeerLibrary.sendAddrMessage(peers[peer]);
 	}
-}, 10 * 60 * 1000); //Run every 10 minutes;
+}, 10 * 60 * 1000);

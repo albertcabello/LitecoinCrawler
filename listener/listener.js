@@ -114,10 +114,13 @@ function ipv4toipv6(ipv4) {
 		hex.push(a+b);
 	}
 	hex.unshift('ffff');
-	hex.unshift('0000');
-	hex.unshift('0000');
+	for (let i = 0; i < 5; i++) {
+		hex.unshift('0000');
+	}
 	return hex.join(':');
 }
+
+console.log(ipv4toipv6('99.98.168.249'));
 
 var peers = {};
 var server = net.createServer(function(socket) {

@@ -91,10 +91,10 @@ function Peer(options) {
     self.bestHeight = message.startHeight;
 
     var verackResponse = self.messages.VerAck();
-    self.sendMessage(verackResponse);
 
     if(!self.versionSent) {
       self._sendVersion();
+      self.sendMessage(verackResponse);
     }
   });
 

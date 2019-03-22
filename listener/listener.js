@@ -31,33 +31,7 @@ Messages.prototype._buildFromBuffer = function(command, payload) {
 /************************************************
  *		Modification of Peer		*
  ***********************************************/
-Peer.prototype._addSocketEventHandlers = function() {
-  var self = this;
-
-  this.socket.on('error', self._onError.bind(this));
-  this.socket.on('end', self.disconnect.bind(this));
-
-  this.socket.on('data', function(data) {
-    //UNCOMMENT THIS FOR TESTING
-    //console.log("RECEIVED DATA FROM", self.socket.remoteAddress, data);
-    self.dataBuffer.push(data);
-
-    if (self.dataBuffer.length > Peer.MAX_RECEIVE_BUFFER) {
-      // TODO: handle this case better
-      return self.disconnect();
-    }
-    self._readMessage();
-  });
-};
-
 Peer.prototype._sendVersion = function() {
-  let words = this.socket.remoteAddress.split(':').map(function(s) {
-    return new Buffer(s, 'hex');
-  });
-  for (let i = 0; i < words.length; i++) {
-    var word = words[i];
-    console.log(word);
-  }
   // todo: include sending local ip address
   /*
   var message = this.messages.Version({
@@ -70,9 +44,10 @@ Peer.prototype._sendVersion = function() {
   var message = new Messages();
   var versionMessage = message.Version({
     relay: this.relay,
-    services: new BN('d', 16),
+    services: new BN('40d', 16),
     version: this.version,
-    subversion: '/LitecoinCore:0.16.3/'
+    subversion: '/LitecoinCore:0.16.3/',
+    startHeight: 1596154
   });
   versionMessage.addrMe = {
     services: new BN('0', 16),
@@ -82,12 +57,12 @@ Peer.prototype._sendVersion = function() {
     port: this.socket.remotePort
   }
   versionMessage.addrYou = {
-    services: new BN('d', 16),
+    services: new BN('40d', 16),
     ip: {
-      v6: '0000:0000:0000:0000:0000:ffff:835e:80f2',
+      v6: '0000:0000:0000:0000:0000:0000:0000:0000',
       v4: '131.94.128.242'
     },
-    port: 9332
+    port: 0
   }
   this.versionSent = true;
   this.sendMessage(versionMessage);
@@ -108,19 +83,17 @@ function ipv4toipv6(ipv4) {
 		return a + b;
 	});
 	let hex = [];
-	for (let i = 0; i <= octets.length / 2; i+=2) {
+	for (let i = 0; i <= octets.length / 2; i+=2) { //Combine pairs of hex
 		let a = octets[i];
 		let b = octets[i+1];
 		hex.push(a+b);
 	}
 	hex.unshift('ffff');
-	for (let i = 0; i < 5; i++) {
+	for (let i = 0; i < 5; i++) { //Prepend 5 sets of zeros
 		hex.unshift('0000');
 	}
 	return hex.join(':');
 }
-
-console.log(ipv4toipv6('99.98.168.249'));
 
 var peers = {};
 var server = net.createServer(function(socket) {
